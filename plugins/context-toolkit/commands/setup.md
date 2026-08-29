@@ -13,6 +13,9 @@ now installed vs. still missing.
    do not paraphrase them.
 3. For any `[FAIL]`, tell the user the exact manual command from the script's
    output.
-4. Do not install anything beyond what the script does, and do not touch
+4. Report whether `node` is on PATH. The context-discipline SessionStart hook
+   and the large-Read symbol outline are plain Node scripts; without `node`
+   both degrade to no-ops and the rest of the plugin still works.
+5. Do not install anything beyond what the script does, and do not touch
    `~/.claude/settings.json` or `~/.claude/CLAUDE.md` — the plugin's own
    hooks/skills are enough once the binaries above exist.

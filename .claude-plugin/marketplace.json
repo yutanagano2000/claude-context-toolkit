@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "context-toolkit",
-      "description": "Bundles the caveman terse-output skill, the rtk bash-output-filter hook, and the code-review-graph incremental review-graph hooks. Run /context-toolkit:setup once per machine to install the underlying binaries (rtk via cargo, code-review-graph via pip) and add the context-mode marketplace.",
+      "description": "Bundles the caveman terse-output skill, the rtk bash-output-filter hook, the code-review-graph incremental review-graph hooks, and a context-discipline layer: per-session reading/command/turn rules, a symbol outline in place of whole-file Reads over 20 KB (measured 93.4% fewer tokens with every sampled declaration still complete), and a UI Automation helper that replaces screenshots on Windows. Run /context-toolkit:setup once per machine to install the underlying binaries (rtk via cargo, code-review-graph via pip) and add the context-mode marketplace, then /context-toolkit:verify to confirm the reduction on that machine.",
       "author": {
         "name": "jwarks"
       },

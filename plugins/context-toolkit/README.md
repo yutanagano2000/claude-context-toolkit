@@ -62,3 +62,80 @@ Bash vs. file/search output.
 - For a real number, run `rtk gain`, `ctx_stats`, and
   `code-review-graph update --verify` (needs `pip install tiktoken`) after a
   representative session and sum their reported savings.
+
+## Measured: the context-discipline layer
+
+Unlike the table above, these numbers came from running the code in this
+plugin against a real 701-file TypeScript monorepo on 2026-08-29. Reproduce
+them anywhere with `/context-toolkit:verify`.
+
+### Narrow reads instead of whole-file reads
+
+`tools/narrow-read-benchmark.mjs` samples up to three declarations in every
+source file over 20 KB, then compares reading the whole file against reading a
+window around the declaration:
+
+```
+files over 20 KB      : 54
+lookup cases measured : 145
+whole-file reads      : 1,484,225 tokens
+narrow reads          :    97,678 tokens
+reduction             : 93.4%
+declarations complete : 145/145 (accuracy preserved)
+```
+
+The last line is the point. The benchmark checks by brace balance that each
+window spans the declaration from its opening line to its closing brace, and
+exits non-zero if any window truncated one. Reduction without that check would
+be worthless — a smaller read that cuts a function in half costs more later
+than it saves now.
+
+### Symbol outline instead of a whole-file read
+
+`hooks/read-size-guard.mjs` fires on `PreToolUse(Read)`. For a 129 KB file it
+returned a 40-symbol outline with line numbers:
+
+| | tokens |
+|---|---|
+| whole-file `Read` | 36,729 |
+| outline from the hook | 834 |
+
+It never blocks: reading a file whole is still correct when rewriting or
+auditing every line. Overhead measured at 67-75 ms, and files under 20 KB are
+skipped after a `stat`.
+
+### UI Automation instead of screenshots
+
+`tools/uia.ps1` (Windows) reads the accessibility tree instead of pixels:
+
+| | tokens |
+|---|---|
+| full-screen PNG read (3840x1080) | ~1,500, no click coordinates |
+| window-rect crop | ~400 |
+| `Dump-UI` text tree | ~300, with element names and centre coordinates |
+
+A click-then-verify round trip fell from about 3,000 tokens to about 250.
+Electron apps return a bare `Pane` on the first query — Chromium enables its
+accessibility tree only once it detects an AT client — so call `Dump-UI` twice.
+
+### A correction worth carrying
+
+`rtk` rewrites only the **first** command on a Bash line, and does not rewrite
+a line piped into `head`. Verified with `rtk hook check`:
+
+```
+ls -la                             -> rtk ls -la
+cd /tmp && ls -la                  -> cd /tmp && rtk ls -la
+ls -la && echo x && ls sr | head   -> only the first ls is rewritten
+cd sr && grep -rln "foo" . | head  -> No rewrite
+```
+
+So hand-truncating with `head`/`tail` is what silences the filter. On one
+sample `rtk discover` found only 3 of 112 Bash calls (2.7%) had actually been
+routed. Use `rtk read f.log --tail-lines 20` rather than `tail -20 f.log`.
+
+## Requirements
+
+`node` on `PATH` for the context-discipline SessionStart hook and the
+large-Read outline; without it both degrade to no-ops and everything else in
+the plugin still works. `tools/uia.ps1` is Windows-only.
