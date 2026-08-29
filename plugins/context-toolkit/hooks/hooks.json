@@ -62,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'context-toolkit: caveman skill should stay active at ultra intensity by default for this session (unless the user said \"stop caveman\" / \"normal mode\"). If not yet activated this session, invoke it before responding.'",
+            "command": "echo 'context-toolkit: caveman skill (invoke via Skill tool with skill=\"context-toolkit:caveman\", args=\"ultra\") should stay active at ultra intensity by default for this session, unless the user said \"stop caveman\" / \"normal mode\". If not yet activated this session, invoke it before responding. Note: this is a PLUGIN skill; ListSkills/SearchSkills query a different registry and will NOT show it - do not conclude it is missing.'",
             "timeout": 5
           }
         ]
