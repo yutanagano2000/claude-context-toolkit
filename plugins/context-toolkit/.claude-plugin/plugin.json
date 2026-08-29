@@ -1,0 +1,8 @@
+{
+  "name": "context-toolkit",
+  "description": "Terse caveman output style + rtk bash-output filtering + code-review-graph incremental review graph, bundled for reuse across machines. Run /context-toolkit:setup after install.",
+  "author": {
+    "name": "jwarks",
+    "email": "jwarks@poppy.ocn.ne.jp"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "description": "context-toolkit hooks: rtk bash-output filter, code-review-graph incremental graph updates, caveman-ultra reminder. All guarded so a machine missing a dependency degrades to a no-op instead of failing the tool call.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v rtk >/dev/null 2>&1; then rtk hook claude; else cat; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat >/dev/null || true; command -v code-review-graph >/dev/null 2>&1 || exit 0; git rev-parse --git-dir >/dev/null 2>&1 && code-review-graph update --skip-flows --repo \"$(git rev-parse --show-toplevel 2>/dev/null)\" || true",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v code-review-graph >/dev/null 2>&1 || exit 0; git rev-parse --git-dir >/dev/null 2>&1 && code-review-graph status --repo \"$(git rev-parse --show-toplevel 2>/dev/null)\" || echo 'code-review-graph: no graph yet for this repo. Run: code-review-graph build --repo <repo-root>'",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'context-toolkit: caveman skill should stay active at ultra intensity by default for this session (unless the user said \"stop caveman\" / \"normal mode\"). If not yet activated this session, invoke it before responding.'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

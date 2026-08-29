@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-context-toolkit",
+  "description": "Personal marketplace bundling caveman (terse output style), rtk (bash output filter), and code-review-graph (incremental review graph) hooks/skills into one installable plugin. context-mode is a separate dependency installed from its own marketplace (mksglu/context-mode).",
+  "owner": {
+    "name": "jwarks",
+    "email": "jwarks@poppy.ocn.ne.jp"
+  },
+  "plugins": [
+    {
+      "name": "context-toolkit",
+      "description": "Bundles the caveman terse-output skill, the rtk bash-output-filter hook, and the code-review-graph incremental review-graph hooks. Run /context-toolkit:setup once per machine to install the underlying binaries (rtk via cargo, code-review-graph via pip) and add the context-mode marketplace.",
+      "author": {
+        "name": "jwarks"
+      },
+      "source": "./plugins/context-toolkit",
+      "category": "productivity"
+    }
+  ]
+}
