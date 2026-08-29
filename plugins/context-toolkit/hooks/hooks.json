@@ -1,5 +1,5 @@
 {
-  "description": "context-toolkit hooks: rtk bash-output filter, code-review-graph incremental graph updates, caveman-ultra reminder. All guarded so a machine missing a dependency degrades to a no-op instead of failing the tool call.",
+  "description": "context-toolkit hooks: rtk bash-output filter, large-Read symbol outline, per-session context-discipline rules, code-review-graph incremental graph updates, caveman-ultra reminder. All guarded so a machine missing a dependency degrades to a no-op instead of failing the tool call.",
   "hooks": {
     "PreToolUse": [
       {
@@ -8,6 +8,16 @@
           {
             "type": "command",
             "command": "if command -v rtk >/dev/null 2>&1; then rtk hook claude; else cat; fi",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if command -v node >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/read-size-guard.mjs\"; else cat >/dev/null; fi",
             "timeout": 10
           }
         ]
@@ -26,6 +36,16 @@
       }
     ],
     "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v node >/dev/null 2>&1 && node \"${CLAUDE_PLUGIN_ROOT}/hooks/context-discipline.mjs\" || true",
+            "timeout": 10
+          }
+        ]
+      },
       {
         "matcher": "",
         "hooks": [
