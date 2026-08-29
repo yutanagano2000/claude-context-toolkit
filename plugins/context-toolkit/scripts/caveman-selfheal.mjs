@@ -40,6 +40,8 @@ const USER_HOOKS = join(CLAUDE, "hooks");
 const USER_ENFORCE = join(USER_HOOKS, "caveman-enforce.mjs");
 const USER_ENFORCE_SHELL = shellPath(USER_ENFORCE);
 const USER_SELFHEAL_SHELL = shellPath(join(USER_HOOKS, "caveman-selfheal.mjs"));
+const USER_RTK_SHELL = shellPath(join(USER_HOOKS, "rtk-filter.mjs"));
+const USER_GRAPH_SHELL = shellPath(join(USER_HOOKS, "graph-freshness.mjs"));
 
 /** This script's own directory, which is also where the enforcer sits in a plugin checkout. */
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -52,7 +54,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
  * beside itself, because the copies under ~/.claude/hooks have no siblings to be restored from.
  */
 function scriptSources() {
-  const found = [HERE];
+  const found = [HERE, join(HERE, "..", "hooks"), join(HERE, "..", "scripts")];
   const cache = join(CLAUDE, "plugins", "cache");
   try {
     for (const marketplace of readdirSync(cache)) {
@@ -65,6 +67,7 @@ function scriptSources() {
       }
       for (const version of versions) {
         found.push(join(plugin, version, "scripts"));
+        found.push(join(plugin, version, "hooks"));
       }
     }
   } catch {
@@ -113,6 +116,33 @@ const selfhealHook = () => ({
   timeout: 10,
 });
 
+/**
+ * The rtk bash filter, as a second copy.
+ *
+ * Safe to install alongside the plugin's because the wrapper claims a per-call lease before it
+ * rewrites anything: whichever copy runs first does the work and the other passes stdin through.
+ * Without that lease this would be a filter fed its own output, which is why rtk lived in one
+ * place until the wrapper existed.
+ */
+const rtkHook = () => ({
+  type: "command",
+  command: `test -f "${USER_RTK_SHELL}" || { cat; exit 0; }; ${NODE} "${USER_RTK_SHELL}"`,
+  timeout: 15,
+});
+
+/**
+ * Keeping the code graph on the commit that is checked out.
+ *
+ * Two registrations, because the two gaps are different: `session` catches a branch changed while
+ * no session was running, `bash` catches one changed by the session itself. An Edit-driven update
+ * covers neither — a merge rewrites the tree without a single Edit.
+ */
+const graphHook = (mode) => () => ({
+  type: "command",
+  command: `test -f "${USER_GRAPH_SHELL}" || exit 0; ${NODE} "${USER_GRAPH_SHELL}" ${mode}`,
+  timeout: 20,
+});
+
 /** Is a hook whose command contains `fingerprint` already registered for `event`? */
 function present(settings, event, fingerprint) {
   return (settings.hooks?.[event] ?? []).some((group) =>
@@ -136,6 +166,9 @@ function repairSettings() {
     ["UserPromptSubmit", mandateHook, "caveman ultra is MANDATORY"],
     ["SessionStart", mandateHook, "caveman ultra is MANDATORY"],
     ["SessionStart", selfhealHook, "caveman-selfheal.mjs"],
+    ["SessionStart", graphHook("session"), "graph-freshness.mjs"],
+    ["PostToolUse", graphHook("bash"), "graph-freshness.mjs"],
+    ["PreToolUse", rtkHook, "rtk-filter.mjs"],
   ];
 
   const restored = [];
@@ -143,7 +176,12 @@ function repairSettings() {
   for (const [event, build, fingerprint] of wanted) {
     if (present(settings, event, fingerprint)) continue;
     settings.hooks[event] ??= [];
-    settings.hooks[event].push({ matcher: "", hooks: [build()] });
+    settings.hooks[event].push({
+      // Bash-only hooks must say so, or they fire on every tool call and the filter is handed
+      // payloads it has no rewrite for.
+      matcher: event === "PreToolUse" || event === "PostToolUse" ? "Bash" : "",
+      hooks: [build()],
+    });
     restored.push(event);
   }
 
@@ -184,6 +222,8 @@ try {
   const copied = [
     repairScript("caveman-enforce.mjs") ? "the enforcer script" : null,
     repairScript("caveman-selfheal.mjs") ? "this self-healer" : null,
+    repairScript("rtk-filter.mjs") ? "the rtk filter" : null,
+    repairScript("graph-freshness.mjs") ? "the graph freshness hook" : null,
   ].filter(Boolean);
   const restored = repairSettings();
   if (copied.length > 0 || restored.length > 0) {
