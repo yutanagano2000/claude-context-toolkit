@@ -1,6 +1,6 @@
 {
   "name": "context-toolkit",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Terse caveman output style, rtk bash-output filtering, code-review-graph incremental review graph, plus context discipline: per-session reading/command/turn rules, a symbol outline instead of whole-file Reads over 20 KB, and a UI Automation helper that replaces screenshots on Windows. Run /context-toolkit:setup after install, then /context-toolkit:verify.",
   "author": {
     "name": "jwarks",
