@@ -1,5 +1,5 @@
 {
-  "description": "context-toolkit hooks: rtk bash-output filter, large-Read symbol outline, per-session context-discipline rules, code-review-graph incremental graph updates, caveman-ultra reminder. All guarded so a machine missing a dependency degrades to a no-op instead of failing the tool call.",
+  "description": "context-toolkit hooks: rtk bash-output filter (ultra-compact), large-Read symbol outline, per-session context-discipline rules, code-review-graph incremental graph updates, machine-enforced caveman-ultra output style. All guarded so a machine missing a dependency degrades to a no-op instead of failing the tool call.",
   "hooks": {
     "PreToolUse": [
       {
@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if command -v rtk >/dev/null 2>&1; then rtk hook claude; else cat; fi",
+            "command": "if command -v rtk >/dev/null 2>&1; then rtk hook claude --ultra-compact --skip-env; else cat; fi",
             "timeout": 10
           }
         ]
@@ -55,6 +55,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'context-toolkit: caveman ultra is MANDATORY for every reply in this session. Invoke the Skill tool with skill=\\\"context-toolkit:caveman\\\", args=\\\"ultra\\\" if not yet activated this turn, then keep that style for the whole reply. This is a machine-enforced setting: a Stop hook inspects the final reply and refuses the turn when it drifts back into prose. It is not a preference and it does not lapse over a long session. Note: caveman is a PLUGIN skill; ListSkills/SearchSkills query a different registry and will NOT show it - an empty result there is not evidence it is missing. Auto-Clarity still applies: security warnings, irreversible-action confirmations and multi-step sequences may use plain prose where compression would risk a misread.'",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -62,8 +72,20 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'context-toolkit: caveman skill (invoke via Skill tool with skill=\"context-toolkit:caveman\", args=\"ultra\") should stay active at ultra intensity by default for this session, unless the user said \"stop caveman\" / \"normal mode\". If not yet activated this session, invoke it before responding. Note: this is a PLUGIN skill; ListSkills/SearchSkills query a different registry and will NOT show it - do not conclude it is missing.'",
+            "command": "echo 'context-toolkit: caveman ultra is MANDATORY for every reply in this session. Invoke the Skill tool with skill=\\\"context-toolkit:caveman\\\", args=\\\"ultra\\\" if not yet activated this turn, then keep that style for the whole reply. This is a machine-enforced setting: a Stop hook inspects the final reply and refuses the turn when it drifts back into prose. It is not a preference and it does not lapse over a long session. Note: caveman is a PLUGIN skill; ListSkills/SearchSkills query a different registry and will NOT show it - an empty result there is not evidence it is missing. Auto-Clarity still applies: security warnings, irreversible-action confirmations and multi-step sequences may use plain prose where compression would risk a misread.'",
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v node >/dev/null 2>&1 || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/scripts/caveman-enforce.mjs\"",
+            "timeout": 10
           }
         ]
       }
