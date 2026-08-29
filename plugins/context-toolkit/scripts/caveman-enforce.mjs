@@ -4,12 +4,18 @@
  *
  * The UserPromptSubmit reminder asks for the style and nothing checks that it was applied, so a long
  * session drifts back into full prose one paragraph at a time and no one notices until the tokens are
- * already spent. This reads the reply that is about to be delivered and blocks once when it carries
+ * already spent. This reads the reply that is about to be delivered and sends it back when it carries
  * the markers the style forbids, quoting them so the next attempt is a rewrite rather than a guess.
  *
- * Blocks AT MOST ONCE per reply. A hook that kept refusing would be a session that cannot finish a
- * turn, which is a worse failure than a verbose answer: the marker file records what was already
- * objected to, and a second stop on the same reply is allowed through.
+ * BOUNDED, NOT SINGLE. One refusal was walked straight past by a reply that did not change, so each
+ * distinct reply may be sent back up to MAX_OBJECTIONS times. The count lives in the marker file and
+ * is keyed by the reply text, so a rewrite starts its own budget and only an unchanged reply spends
+ * the old one. Unbounded refusal is deliberately not the design: that is a session which can never
+ * finish a turn, which is a worse failure than a verbose answer.
+ *
+ * The stop_hook_active flag is NOT an early exit here. It is set on every stop after the first block,
+ * so honouring it would cap this at exactly one refusal and make the budget above unreachable. The
+ * marker count is what keeps the session recoverable instead.
  *
  * Fails open everywhere. A malformed transcript, an unreadable marker directory or an unexpected
  * payload shape ends the turn normally — style enforcement is not worth wedging a session over.
@@ -36,6 +42,15 @@ const DECORATION = ["→", "⇒", "✅", "❌", "🎉", "🚀", "💡", "⚠️"
 
 /** How many distinct markers are tolerated before the reply is sent back. */
 const THRESHOLD = 2;
+
+/**
+ * How many times one reply may be sent back before the turn is allowed to end.
+ *
+ * Not one, which a single stubborn reply walked straight past, and not unbounded, which is a session
+ * that can never finish a turn. Three refusals is enough for a rewrite to land and still leaves the
+ * session recoverable when the checker and the model disagree about a word.
+ */
+const MAX_OBJECTIONS = 3;
 
 function readPayload() {
   try {
@@ -98,8 +113,8 @@ function findMarkers(text) {
   return found;
 }
 
-/** True the first time this exact reply is objected to, false every time after. */
-function claimFirstObjection(sessionId, text) {
+/** True while this exact reply still has objections left, false once they are spent. */
+function claimObjection(sessionId, text) {
   const digest = createHash("sha256")
     .update(`${sessionId ?? "unknown"}\n${text}`)
     .digest("hex")
@@ -108,8 +123,13 @@ function claimFirstObjection(sessionId, text) {
   try {
     mkdirSync(directory, { recursive: true });
     const marker = join(directory, `${digest}.seen`);
-    if (existsSync(marker)) return false;
-    writeFileSync(marker, "");
+    let spent = 0;
+    if (existsSync(marker)) {
+      spent = Number.parseInt(readFileSync(marker, "utf8").trim(), 10);
+      if (!Number.isFinite(spent)) spent = 0;
+    }
+    if (spent >= MAX_OBJECTIONS) return false;
+    writeFileSync(marker, String(spent + 1));
     return true;
   } catch {
     return false;
@@ -118,15 +138,13 @@ function claimFirstObjection(sessionId, text) {
 
 const payload = readPayload();
 if (!payload?.transcript_path) process.exit(0);
-// Already inside a blocked stop; objecting again is how a session wedges.
-if (payload.stop_hook_active) process.exit(0);
 
 const reply = lastAssistantText(payload.transcript_path);
 if (!reply) process.exit(0);
 
 const markers = findMarkers(reply);
 if (markers.length < THRESHOLD) process.exit(0);
-if (!claimFirstObjection(payload.session_id, reply)) process.exit(0);
+if (!claimObjection(payload.session_id, reply)) process.exit(0);
 
 const quoted = markers.map((marker) => `"${marker}"`).join(", ");
 process.stderr.write(
