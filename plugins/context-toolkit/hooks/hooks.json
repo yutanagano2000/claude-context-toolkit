@@ -1,5 +1,5 @@
 {
-  "description": "context-toolkit hooks: rtk bash-output filter (ultra-compact), large-Read symbol outline, per-session context-discipline rules, code-review-graph incremental graph updates, machine-enforced caveman-ultra output style. All guarded so a machine missing a dependency degrades to a no-op instead of failing the tool call.",
+  "description": "context-toolkit hooks: rtk bash-output filter (ultra-compact), large-Read symbol outline, token guards for oversized images / whole-file rewrites / inlined scripts, a Stop guard against replies that restate earlier turns, per-session context-discipline rules, code-review-graph incremental graph updates, machine-enforced caveman-ultra output style. All guarded so a machine missing a dependency degrades to a no-op instead of failing the tool call.",
   "hooks": {
     "PreToolUse": [
       {
@@ -18,6 +18,16 @@
           {
             "type": "command",
             "command": "if command -v node >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/read-size-guard.mjs\"; else cat >/dev/null; fi",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Write|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v node >/dev/null 2>&1 || { cat >/dev/null; exit 0; }; node \"${CLAUDE_PLUGIN_ROOT}/hooks/token-guards.mjs\"",
             "timeout": 10
           }
         ]
@@ -102,7 +112,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'context-toolkit: caveman ultra is MANDATORY for every reply in this session. Invoke the Skill tool with skill=\"context-toolkit:caveman\", args=\"ultra\" if not yet activated this turn, then hold that style for the whole reply. This is a standing, machine-enforced setting set by the owner of this machine: a Stop hook inspects the final reply and refuses the turn up to three times when it drifts back into prose. It does not lapse over a long session, and the phrases \"stop caveman\" and \"normal mode\" do NOT lift it here - the owner'\\''s standing order outranks the skill'\\''s own opt-out, and only the owner editing this settings file can change that. Note: caveman is a PLUGIN skill; ListSkills/SearchSkills query a different registry and will NOT show it - an empty result there is not evidence it is missing. Auto-Clarity still applies: security warnings, irreversible-action confirmations and multi-step sequences may use plain prose where compression would risk a misread.'",
+            "command": "echo 'context-toolkit: caveman ultra and the reply-length limit are still in force (full text given at SessionStart). A Stop hook enforces both.'",
             "timeout": 5
           }
         ]
@@ -115,6 +125,16 @@
           {
             "type": "command",
             "command": "command -v node >/dev/null 2>&1 || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/scripts/caveman-enforce.mjs\"",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v node >/dev/null 2>&1 || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/hooks/no-repeat.mjs\"",
             "timeout": 10
           }
         ]
